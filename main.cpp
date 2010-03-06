@@ -279,6 +279,7 @@ bool OBSEPlugin_Load(const OBSEInterface * obse)
 	obse->RegisterCommand(&kCommandInfo_SetHUDElementScale);
 	obse->RegisterCommand(&kCommandInfo_SetHUDElementRotation);
 	obse->RegisterCommand(&kCommandInfo_PurgeManagedTextures);
+	obse->RegisterCommand(&kCommandInfo_IsShaderEnabled);
 	
 // We don't want to hook the construction set.
 
