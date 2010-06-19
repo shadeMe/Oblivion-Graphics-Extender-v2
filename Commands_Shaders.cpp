@@ -125,11 +125,10 @@ static bool SetShaderTexture_Execute(COMMAND_ARGS)
 static bool IsShaderEnabled_Execute(COMMAND_ARGS)
 {
 	*result=0;
-
 	DWORD id;
+	
 	if(!ExtractArgs(EXTRACTARGS, &id)) return true;
 	*result=ShaderManager::GetSingleton()->GetShaderState(id);
-
 	return true;
 }
 
@@ -234,6 +233,7 @@ CommandInfo kCommandInfo_SetShaderTexture =
 	0,
 	0
 };
+
 CommandInfo kCommandInfo_IsShaderEnabled =
 {
 	"IsShaderEnabled",

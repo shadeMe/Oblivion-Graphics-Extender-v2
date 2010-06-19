@@ -2,6 +2,9 @@
 #include "ShaderManager.h"
 #include "ScreenElements.h"
 #include "obse\pluginapi.h"
+#include "GlobalSettings.h"
+
+static global<int> BufferTexturesNumBits(8,NULL,"ScreenBuffers","iBufferTexturesNumBits");
 
 TextureRecord::TextureRecord()
 {
@@ -63,17 +66,19 @@ TextureManager::TextureManager()
 TextureManager::~TextureManager()
 {
 	if(thisframeSurf)
-		while(thisframeSurf->Release()){};
+		thisframeSurf->Release();
 	if(lastframeSurf)
-		while(lastframeSurf->Release()){};
+		lastframeSurf->Release();
 	if(lastpassSurf)
-		while(lastpassSurf->Release()){};
+		lastpassSurf->Release();
 	if(thisframeTex)
 		while(thisframeTex->Release()){};
 	if(lastframeTex)
 		while(lastframeTex->Release()){};
 	if(lastpassTex)
 		while(lastpassTex->Release()){};
+	if(IsRAWZ()&&depth)
+		while(depth->Release()){};
 }
 
 TextureManager*	TextureManager::Singleton=NULL;
@@ -87,18 +92,55 @@ TextureManager*	TextureManager::GetSingleton()
 
 void	TextureManager::InitialiseFrameTextures()
 {
-	_MESSAGE("Creating screen texture.");
-	_MESSAGE("Width = %i, Height = %i",v1_2_416::GetRenderer()->SizeWidth,v1_2_416::GetRenderer()->SizeHeight);
-	GetD3DDevice()->CreateTexture(v1_2_416::GetRenderer()->SizeWidth,v1_2_416::GetRenderer()->SizeHeight,1,D3DUSAGE_RENDERTARGET,D3DFMT_X8R8G8B8,D3DPOOL_DEFAULT,&thisframeTex,0);
-	GetD3DDevice()->CreateTexture(v1_2_416::GetRenderer()->SizeWidth,v1_2_416::GetRenderer()->SizeHeight,1,D3DUSAGE_RENDERTARGET,D3DFMT_X8R8G8B8,D3DPOOL_DEFAULT,&lastpassTex,0);
-	GetD3DDevice()->CreateTexture(v1_2_416::GetRenderer()->SizeWidth,v1_2_416::GetRenderer()->SizeHeight,1,D3DUSAGE_RENDERTARGET,D3DFMT_X8R8G8B8,D3DPOOL_DEFAULT,&lastframeTex,0);
-	
-	//GetD3DDevice()->CreateTexture(v1_2_416::GetRenderer()->SizeWidth,v1_2_416::GetRenderer()->SizeHeight,1,D3DUSAGE_RENDERTARGET,D3DFMT_A16B16G16R16F,D3DPOOL_DEFAULT,&thisframeTex,0);
-	//GetD3DDevice()->CreateTexture(v1_2_416::GetRenderer()->SizeWidth,v1_2_416::GetRenderer()->SizeHeight,1,D3DUSAGE_RENDERTARGET,D3DFMT_A16B16G16R16F,D3DPOOL_DEFAULT,&lastpassTex,0);
-	//GetD3DDevice()->CreateTexture(v1_2_416::GetRenderer()->SizeWidth,v1_2_416::GetRenderer()->SizeHeight,1,D3DUSAGE_RENDERTARGET,D3DFMT_A16B16G16R16F,D3DPOOL_DEFAULT,&lastframeTex,0);
-	
+	HRESULT hr;
 
-	_MESSAGE("Setting screen surface.");
+	if(BufferTexturesNumBits.data>32 || BufferTexturesNumBits.data%8>0)
+		BufferTexturesNumBits.data=8;
+
+	UInt32 Width=v1_2_416::GetRenderer()->SizeWidth;
+	UInt32 Height=v1_2_416::GetRenderer()->SizeHeight;
+
+	_MESSAGE("Creating shader textures.");
+	_MESSAGE("Width = %i, Height = %i",Width,Height);
+	
+	if(BufferTexturesNumBits.data==32)
+	{
+		hr=GetD3DDevice()->CreateTexture(Width,Height,1,D3DUSAGE_RENDERTARGET,D3DFMT_A32B32G32R32F,D3DPOOL_DEFAULT,&thisframeTex,0);
+		if(FAILED(hr))
+		{
+			thisframeTex->Release();
+			BufferTexturesNumBits.data=16;
+		}
+		else
+		{
+			GetD3DDevice()->CreateTexture(Width,Height,1,D3DUSAGE_RENDERTARGET,D3DFMT_A32B32G32R32F,D3DPOOL_DEFAULT,&lastpassTex,0);
+			GetD3DDevice()->CreateTexture(Width,Height,1,D3DUSAGE_RENDERTARGET,D3DFMT_A32B32G32R32F,D3DPOOL_DEFAULT,&lastframeTex,0);
+		}
+	}
+
+	if(BufferTexturesNumBits.data==16)
+	{
+		hr=GetD3DDevice()->CreateTexture(Width,Height,1,D3DUSAGE_RENDERTARGET,D3DFMT_A16B16G16R16F,D3DPOOL_DEFAULT,&thisframeTex,0);
+		if(FAILED(hr))
+		{
+			thisframeTex->Release();
+			BufferTexturesNumBits.data=8;
+		}
+		else
+		{
+			GetD3DDevice()->CreateTexture(Width,Height,1,D3DUSAGE_RENDERTARGET,D3DFMT_A16B16G16R16F,D3DPOOL_DEFAULT,&lastpassTex,0);
+			GetD3DDevice()->CreateTexture(Width,Height,1,D3DUSAGE_RENDERTARGET,D3DFMT_A16B16G16R16F,D3DPOOL_DEFAULT,&lastframeTex,0);
+		}
+	}
+
+	if(BufferTexturesNumBits.data==8)
+	{
+		GetD3DDevice()->CreateTexture(Width,Height,1,D3DUSAGE_RENDERTARGET,D3DFMT_X8R8G8B8,D3DPOOL_DEFAULT,&thisframeTex,0);
+		GetD3DDevice()->CreateTexture(Width,Height,1,D3DUSAGE_RENDERTARGET,D3DFMT_X8R8G8B8,D3DPOOL_DEFAULT,&lastpassTex,0);
+		GetD3DDevice()->CreateTexture(Width,Height,1,D3DUSAGE_RENDERTARGET,D3DFMT_X8R8G8B8,D3DPOOL_DEFAULT,&lastframeTex,0);
+	}
+
+	_MESSAGE("Setting shader surfaces.");
 	thisframeTex->GetSurfaceLevel(0,&thisframeSurf);
 	lastpassTex->GetSurfaceLevel(0,&lastpassSurf);
 	lastframeTex->GetSurfaceLevel(0,&lastframeSurf);
@@ -121,29 +163,21 @@ void	TextureManager::DeviceRelease()
 	if(thisframeSurf)
 	{
 		_MESSAGE("Releasing thisframe surface.");
-		while(thisframeSurf->Release()){}
+		thisframeSurf->Release();
 		thisframeSurf=NULL;
 	}
-
-	if(lastpassSurf)
-	{
-		_MESSAGE("Releasing lastpass surface.");
-		while(lastpassSurf->Release()){}
-		lastpassSurf=NULL;
-	}
-
-	if(lastframeSurf)
-	{
-		_MESSAGE("Releasing lastframe surface.");
-		while(lastframeSurf->Release()){}
-		lastframeSurf=NULL;
-	}
-
+	
 	if (thisframeTex)
 	{
 		_MESSAGE("Releasing thisframe texture.");
 		while(thisframeTex->Release()){}
 		thisframeTex=NULL;
+	}
+	if(lastpassSurf)
+	{
+		_MESSAGE("Releasing lastpass surface.");
+		lastpassSurf->Release();
+		lastpassSurf=NULL;
 	}
 
 	if (lastpassTex)
@@ -151,6 +185,13 @@ void	TextureManager::DeviceRelease()
 		_MESSAGE("Releasing lastpass texture.");
 		while(lastpassTex->Release()){}
 		lastpassTex=NULL;
+	}
+
+	if(lastframeSurf)
+	{
+		_MESSAGE("Releasing lastframe surface.");
+		lastframeSurf->Release();
+		lastframeSurf=NULL;
 	}
 
 	if (lastframeTex)
@@ -243,7 +284,6 @@ StaticTextureRecord*	TextureManager::LoadStaticTexture(char *Filename)
 void TextureManager::NewGame()
 {
 	TextureList::iterator Texture=Textures.begin();
-
 	while(Texture!=Textures.end())
 	{
 		if((*Texture)->texture)
@@ -306,8 +346,7 @@ void TextureManager::ReleaseTexture(IDirect3DTexture9 *texture)
 		while(Textures[index]->texture->Release()){};
 		Textures[index]->texture=NULL;
 		Textures[index]->Filepath[0]=0;
-	}
-	
+	}	
 }
 
 void TextureManager::LoadGame(OBSESerializationInterface *Interface)
