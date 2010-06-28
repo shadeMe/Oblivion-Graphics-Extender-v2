@@ -721,7 +721,7 @@ void ShaderManager::SaveGame(OBSESerializationInterface *Interface)
 void ShaderManager::LoadGame(OBSESerializationInterface *Interface)
 {
 	UInt32	type, version, length;
-	int LoadShaderNum;
+	int LoadShaderNum, temp;
 	char LoadFilepath[260];
 	bool LoadEnabled;
 	UInt32 LoadRefID;
@@ -846,6 +846,7 @@ void ShaderManager::LoadGame(OBSESerializationInterface *Interface)
 				}
 				Interface->GetNextRecordInfo(&type, &version, &length);
 			}
+			Interface->ReadRecordData(&temp,length);
 
 			// Need to set after loading shaders vars to save file doesn't override them.
 			_MESSAGE("Setting effects screen texture.");
@@ -870,9 +871,11 @@ void ShaderManager::LoadGame(OBSESerializationInterface *Interface)
 				Interface->ReadRecordData(&LoadFilepath,length);
 				Interface->GetNextRecordInfo(&type, &version, &length);
 			}
+			Interface->ReadRecordData(&temp,length);
 		}
 		Interface->GetNextRecordInfo(&type,&version,&length);
 	}
+	Interface->ReadRecordData(&temp,length);
 }
 		
 bool ShaderManager::IsShaderValid(int ShaderNum)
