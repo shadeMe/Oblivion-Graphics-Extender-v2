@@ -2,7 +2,7 @@
 #include "TextureManager.h"
 #include "GlobalSettings.h"
 
-static global<bool> UseShaderList(true,NULL,"Shaders","bUseShaderList");
+static global<bool> UseShaderList(false,NULL,"Shaders","bUseShaderList");
 static global<char*> ShaderListFile("data\\shaders\\shaderlist.txt",NULL,"Shaders","sShaderListFile");
 static global<bool> UseLegacyCompiler(false,NULL,"Shaders","bUseLegacyCompiler");
 static global<bool> SplitScreen(false,NULL,"Shaders","bRenderHalfScreen");
@@ -641,8 +641,15 @@ void ShaderManager::LoadShaderList()
 	if(UseShaderList.data)
 	{
 		_MESSAGE("Loading the shaders.");
-		if(!fopen_s(&ShaderFile,ShaderListFile.Get(),"rt"))
+		switch (fopen_s(&ShaderFile,ShaderListFile.Get(),"rt"))
 		{
+		case 2:
+			_MESSAGE("Shaderlist.txt file created.");
+			fopen_s(&ShaderFile,ShaderListFile.Get(),"w");
+			putc('\n', ShaderFile);
+			fclose(ShaderFile);
+			break;
+		case 0:
 			while(!feof(ShaderFile))
 			{
 				if(fgets(ShaderBuffer,260,ShaderFile))
@@ -654,10 +661,10 @@ void ShaderManager::LoadShaderList()
 				}
 			}
 			fclose(ShaderFile);
-		}
-		else
-		{
+			break;
+		default:
 			_MESSAGE("Error opening shaderlist.txt file.");
+			break;
 		}
 	}
 	else
